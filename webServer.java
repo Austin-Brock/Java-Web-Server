@@ -38,3 +38,13 @@ final class HttpRequest implements Runnable {
     public HttpRequest(Socket socket) throws Exception {
         this.socket = socket;
     }
+
+    // Implement the run() method of the Runnable interface.
+    @Override
+    public void run() {
+        try {
+            processRequest();
+        } catch (Exception e) {
+            System.out.println("Error processing request: " + e.getMessage());
+        }
+    }
