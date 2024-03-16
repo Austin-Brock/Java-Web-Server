@@ -29,6 +29,12 @@ public final class WebServer {
     } //main
 } //webserver
 
+// Define the HttpRequest class that handles individual client requests
 final class HttpRequest implements Runnable {
+    final static String CRLF = "\r\n"; // Carriage return line feed pair
+    Socket socket;
 
-}
+    // Constructor to initialize the HttpRequest object with a client socket
+    public HttpRequest(Socket socket) throws Exception {
+        this.socket = socket;
+    }
