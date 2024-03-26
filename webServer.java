@@ -1,18 +1,15 @@
 import java.io.*;
 import java.net.*;
-import java.util.*;
+import java.util.StringTokenizer;
 
-// Define the WebServer class as the main entry point of the application
 public final class WebServer {
     public static void main(String argv[]) throws Exception {
-        // Set the port number (above 1024 to avoid superuser rights requirement).
+        // Set the port number.
         int port = 6789;
 
-        // Establish the listen socket on the specified port
+        // Establish the listen socket.
         ServerSocket listenSocket = new ServerSocket(port);
-
-        // Print a start-up message
-        System.out.println("WebServer listening on port " + port);
+        System.out.println("Server listening on port " + port);
 
         // Process HTTP service requests in an infinite loop.
         while (true) {
@@ -27,56 +24,110 @@ public final class WebServer {
 
             // Start the thread.
             thread.start();
-        } //while
-        // The server can be stopped by pressing Ctrl+C
-    } //main
-} //webServer
+        }
+    }
+}
 
-// Define the HttpRequest class that handles individual client requests
 final class HttpRequest implements Runnable {
-    final static String CRLF = "\r\n"; // Carriage return line feed pair
+    final static String CRLF = "\r\n";
     Socket socket;
 
-    // Constructor to initialize the HttpRequest object with a client socket
+    // Constructor
     public HttpRequest(Socket socket) throws Exception {
         this.socket = socket;
-    } //HttpRequest
+    }
 
     // Implement the run() method of the Runnable interface.
-    @Override
     public void run() {
         try {
             processRequest();
         } catch (Exception e) {
             System.out.println("Error processing request: " + e.getMessage());
-        } //catch
-    } //run
+        }
+    }
 
-    // Process the client's request by reading from and writing to the socket
     private void processRequest() throws Exception {
-        // Get references to the socket's input and output streams
         InputStream is = socket.getInputStream();
         DataOutputStream os = new DataOutputStream(socket.getOutputStream());
-
-        // Set up input stream filters
         BufferedReader br = new BufferedReader(new InputStreamReader(is));
 
-        // Read the request line of the HTTP request message
         String requestLine = br.readLine();
-        
-        // Display the request line
         System.out.println();
         System.out.println(requestLine);
 
-        // Read and display the header lines
-        String headerLine = null;
-        while ((headerLine = br.readLine()).length() != 0) {
-            System.out.println(headerLine);
-        } //while
+        StringTokenizer tokens = new StringTokenizer(requestLine);
+        tokens.nextToken(); // Skip "GET"
+        String fileName = tokens.nextToken();
 
-        // Close streams and socket
+        fileName = "." + fileName;
+
+        FileInputStream fis = null;
+        boolean fileExists = true;
+
+        try {
+            fis = new FileInputStream(fileName);
+        } catch (FileNotFoundException e) {
+            fileExists = false;
+        }
+
+        String statusLine = null;
+        String contentTypeLine = null;
+        String entityBody = null;
+
+        if (fileExists) {
+            statusLine = "HTTP/1.1 200 OK" + CRLF;
+            contentTypeLine = "Content-Type: " + contentType(fileName) + CRLF;
+        } else {
+            statusLine = "HTTP/1.1 404 Not Found" + CRLF;
+            contentTypeLine = "Content-Type: text/html" + CRLF;
+            entityBody = "<HTML>" + "<HEAD><TITLE>Not Found</TITLE></HEAD>" +
+                         "<BODY>Not Found</BODY></HTML>";
+        }
+
+        os.writeBytes(statusLine);
+        os.writeBytes(contentTypeLine);
+        os.writeBytes(CRLF);
+
+        if (fileExists) {
+            sendBytes(fis, os);
+            fis.close();
+        } else {
+            os.writeBytes(entityBody);
+        }
+
         os.close();
         br.close();
         socket.close();
-    } //processRequest
-} //
+    }
+
+    private static void sendBytes(FileInputStream fis, OutputStream os) throws Exception {
+        byte[] buffer = new byte[1024];
+        int bytes = 0;
+
+        while ((bytes = fis.read(buffer)) != -1) {
+            os.write(buffer, 0, bytes);
+        }
+    }
+
+    private static String contentType(String fileName) {
+        if (fileName.endsWith(".htm") || fileName.endsWith(".html")) {
+            return "text/html";
+        }
+        if (fileName.endsWith(".gif")) {
+            return "image/gif";
+        }
+        if (fileName.endsWith(".jpeg") || fileName.endsWith(".jpg")) {
+            return "image/jpeg";
+        }
+        if (fileName.endsWith(".png")) {
+            return "image/png";
+        }
+        if (fileName.endsWith(".css")) {
+            return "text/css";
+        }
+        if (fileName.endsWith(".js")) {
+            return "application/javascript";
+        }
+        return "application/octet-stream";
+    }
+}
